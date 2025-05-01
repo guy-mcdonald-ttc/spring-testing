@@ -1,36 +1,94 @@
 plugins {
-	id 'org.springframework.boot' version '3.1.5'
-	id 'io.spring.dependency-management' version '1.1.3'
-	id 'java'
-	id 'idea'
-	id 'eclipse'
+    id 'org.springframework.boot' version '3.1.5'
+    id 'io.spring.dependency-management' version '1.1.3'
+    id 'java'
+    id 'idea'
+    id 'eclipse'
+    id 'jacoco'
+    id 'com.teamscale' version '35.2.0'
 }
+
+// Teamscale helper classes
+import com.teamscale.reporting.testwise.TestwiseCoverageReport
+import com.teamscale.TeamscaleUpload
+
 
 group = 'com.hamvocke.spring-testing'
 version = '0.0.1-SNAPSHOT'
 
 java {
-	sourceCompatibility = '17'
+    sourceCompatibility = '17'
 }
 
 repositories {
-	mavenCentral()
+    mavenCentral()
 }
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	runtimeOnly 'org.postgresql:postgresql'
-	runtimeOnly 'com.h2database:h2'
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'io.rest-assured:rest-assured:5.3.2'
-	testImplementation 'com.github.tomakehurst:wiremock:3.0.1'
-	testImplementation 'org.seleniumhq.selenium:selenium-java'
-	testImplementation 'au.com.dius.pact.consumer:junit5:4.4.8'
-	testImplementation 'au.com.dius.pact.provider:junit5spring:4.4.8'
-	testImplementation 'io.github.bonigarcia:webdrivermanager:5.6.0'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    runtimeOnly 'org.postgresql:postgresql'
+    runtimeOnly 'com.h2database:h2'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'io.rest-assured:rest-assured:5.3.2'
+    testImplementation 'com.github.tomakehurst:wiremock:3.0.1'
+    testImplementation 'org.seleniumhq.selenium:selenium-java'
+    testImplementation 'au.com.dius.pact.consumer:junit5:4.4.8'
+    testImplementation 'au.com.dius.pact.provider:junit5spring:4.4.8'
+    testImplementation 'io.github.bonigarcia:webdrivermanager:5.6.0'
 }
 
-tasks.named('test') {
-	useJUnitPlatform()
+// === Teamscale server connection ===
+teamscale {
+    server {
+        url = 'https://heart-nexus.com/engine/'
+        project = 'spring-testing'
+        userName = 'admin'
+        userAccessToken = '6v4DG9cCKRJDpSCtvfcD132T2j5BRgvq'
+    }
 }
+
+// === JUnit tests + TIA ===
+tasks.named('test') {
+    useJUnitPlatform()
+
+    jacoco {
+        includes = ['*example*'] // Only include your main package
+        excludes = [ 
+            'org/springframework/*',
+            'org/hibernate/*',
+            'org/apache/*',
+            'com/fasterxml/*',
+            'com/zaxxer/*',
+         ]
+    }
+
+    teamscale {
+        collectTestwiseCoverage = true   // record coverage per test case
+        runImpacted             = false // Ensure all tests run
+        partition               = 'Unit Tests'
+        includeFailedAndSkipped = true
+    }
+
+    // trigger the upload automatically after the test task
+    finalizedBy 'teamscaleTestUpload'
+}
+
+// === Generate Testwise Coverage JSON ===
+tasks.register('testwiseCoverageReport', TestwiseCoverageReport) {
+    dependsOn tasks.named('test')
+    executionData(tasks.named('test'))
+    sourceSets(sourceSets.main)
+}
+
+// === Upload coverage + JUnit results to Teamscale ===
+tasks.register('teamscaleTestUpload', TeamscaleUpload) {
+    dependsOn tasks.named('testwiseCoverageReport')
+    partition = 'Unit Tests'
+    from(tasks.named('testwiseCoverageReport')) // JSON coverage
+    from(tasks.named('test'))                   // JUnit XML reports
+    // ignoreFailures = true // uncomment if you want build to continue even if upload fails
+}
+
