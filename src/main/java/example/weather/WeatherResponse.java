@@ -1,11 +1,11 @@
 package example.weather;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class WeatherResponse {
@@ -13,6 +13,10 @@ public class WeatherResponse {
     private List<Weather> weather;
 
     public WeatherResponse() {}
+
+    public WeatherResponse(List<Weather> weather) {
+        this.weather = weather;
+    }
 
     public WeatherResponse(String main, String description) {
         this.weather = Collections.singletonList(new Weather(main, description));
