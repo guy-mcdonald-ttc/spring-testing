@@ -4,14 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import example.helper.FileLoader;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
+import java.lang.reflect.Field;
 import java.util.Collections;
-import java.util.Objects;
-import example.weather.WeatherResponse.Weather;
+import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 public class WeatherResponseTest {
 
@@ -26,58 +26,73 @@ public class WeatherResponseTest {
     }
 
     @Test
-    public void testHashCodeWithEmptyWeatherList() {
-        WeatherResponse weatherResponse = new WeatherResponse(Collections.emptyList());
-        int hashCode = weatherResponse.hashCode();
-        assertEquals(1, hashCode);
+    public void shouldReturnCorrectSummaryWithMultipleWeatherConditions() {
+        WeatherResponse response = new WeatherResponse();
+        response.getWeather().add(new WeatherResponse.Weather("Clouds", "scattered clouds"));
+        response.getWeather().add(new WeatherResponse.Weather("Rain", "light rain"));
+
+        String expectedSummary = "Clouds: scattered clouds\nRain: light rain";
+        String actualSummary = response.getSummary();
+
+        assertEquals(expectedSummary, actualSummary);
     }
 
     @Test
-    public void testHashCodeWithSingleWeatherObject() {
-        List<Weather> weatherList = List.of(new Weather("raining", "description"));
-        WeatherResponse weatherResponse = new WeatherResponse(weatherList);
-        int hashCode = weatherResponse.hashCode();
-        assertEquals(Objects.hash(weatherList), hashCode);
+    public void shouldReturnCorrectSummaryWithEmptyWeatherList() {
+        WeatherResponse response = new WeatherResponse();
+        response.getWeather().clear(); // Ensure the list is empty
+        String summary = response.getSummary();
+        assertEquals("", summary);
     }
 
     @Test
-    public void testHashCodeWithMultipleWeatherObjects() {
-        List<Weather> weatherList = List.of(new Weather("raining", "description1"), new Weather("cloudy", "description2"));
-        WeatherResponse weatherResponse = new WeatherResponse(weatherList);
-        int hashCode = weatherResponse.hashCode();
-        assertEquals(Objects.hash(weatherList), hashCode);
+    public void shouldReturnCorrectSummaryWithNullWeatherList() throws Exception {
+        WeatherResponse response = new WeatherResponse();
+        Field weatherField = WeatherResponse.class.getDeclaredField("weather");
+        weatherField.setAccessible(true);
+        weatherField.set(response, null); // Directly set weather to null using reflection
+
+        String summary = response.getSummary(); // Expecting empty string as per the current implementation
+        assertEquals("", summary);
     }
 
     @Test
-    public void testHashCodeWithEqualWeatherResponses() {
-        List<Weather> weatherList = List.of(new Weather("raining", "description"));
-        WeatherResponse weatherResponse1 = new WeatherResponse(weatherList);
-        WeatherResponse weatherResponse2 = new WeatherResponse(weatherList);
-        int hashCode1 = weatherResponse1.hashCode();
-        int hashCode2 = weatherResponse2.hashCode();
-        assertEquals(hashCode1, hashCode2);
+    public void shouldTestEqualsMethod() {
+        WeatherResponse response1 = createWeatherResponse("Clouds", "scattered clouds");
+        WeatherResponse response2 = createWeatherResponse("Clouds", "scattered clouds");
+        WeatherResponse response3 = createWeatherResponse("Rain", "light rain");
+
+        assertEquals(response1, response1); // Reflexivity
+        assertEquals(response1, response2); // Symmetry
+        assertEquals(response2, response1);
+        assertNotEquals(response1, response3);
+        assertNotEquals(response1, null);   // Null comparison
+        assertNotEquals(response1, "test"); // Different type
+    }
+
+
+    @Test
+    public void shouldTestHashCodeMethod() {
+        WeatherResponse response1 = createWeatherResponse("Clouds", "scattered clouds");
+        WeatherResponse response2 = createWeatherResponse("Clouds", "scattered clouds");
+        WeatherResponse response3 = createWeatherResponse("Rain", "light rain");
+
+        assertEquals(response1.hashCode(), response2.hashCode());
+        assertNotEquals(response1.hashCode(), response3.hashCode());
     }
 
     @Test
-    public void testToStringWithEmptyWeatherList() {
-        WeatherResponse weatherResponse = new WeatherResponse(Collections.emptyList());
-        String toString = weatherResponse.toString();
-        assertThat(toString, is("WeatherResponse{weather=[]}"));
+    public void shouldTestToStringMethod() {
+        WeatherResponse response = createWeatherResponse("Clouds", "scattered clouds");
+
+        // Using toString() of WeatherResponse and Weather.  Indirectly testing 'weather' field.
+        String expected = "WeatherResponse{weather=[Weather{main='Clouds', description='scattered clouds'}]}";
+        assertEquals(expected, response.toString());
     }
 
-    @Test
-    public void testToStringWithSingleWeatherObject() {
-        List<Weather> weatherList = List.of(new Weather("raining", "description"));
-        WeatherResponse weatherResponse = new WeatherResponse(weatherList);
-        String toString = weatherResponse.toString();
-        assertThat(toString, is("WeatherResponse{weather=[Weather{main='raining', description='description'}]}"));
-    }
-
-    @Test
-    public void testToStringWithMultipleWeatherObjects() {
-        List<Weather> weatherList = List.of(new Weather("raining", "description1"), new Weather("cloudy", "description2"));
-        WeatherResponse weatherResponse = new WeatherResponse(weatherList);
-        String toString = weatherResponse.toString();
-        assertThat(toString, is("WeatherResponse{weather=[Weather{main='raining', description='description1'}, Weather{main='cloudy', description='description2'}]}"));
+    private WeatherResponse createWeatherResponse(String main, String description) {
+        WeatherResponse response = new WeatherResponse();
+        response.getWeather().add(new WeatherResponse.Weather(main, description));
+        return response;
     }
 }
