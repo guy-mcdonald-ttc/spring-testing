@@ -90,7 +90,7 @@ tasks.register('testwiseCoverageReport', TestwiseCoverageReport) {
 // === Upload coverage + JUnit results to Teamscale ===
 tasks.register('teamscaleTestUpload', TeamscaleUpload) {
     dependsOn tasks.named('testwiseCoverageReport')
-    partition = 'Unit Tests (Generated)'
+    partition = 'Unit Tests (Baseline)'
     from(tasks.named('testwiseCoverageReport')) // JSON coverage
     from(tasks.named('test'))                   // JUnit XML reports
     // ignoreFailures = true // uncomment if you want build to continue even if upload fails
